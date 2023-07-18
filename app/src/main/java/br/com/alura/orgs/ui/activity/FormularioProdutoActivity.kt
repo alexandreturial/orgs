@@ -2,51 +2,117 @@ package br.com.alura.orgs.ui.activity
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import br.com.alura.orgs.dao.ProdutosDao
+import br.com.alura.orgs.database.AppDatabase
+import br.com.alura.orgs.database.dao.ProdutoDao
 import br.com.alura.orgs.databinding.ActivityFormularioProdutoBinding
+import br.com.alura.orgs.databinding.FormularioImagemBinding
+import br.com.alura.orgs.extensions.tentarCarregarimage
 import br.com.alura.orgs.model.Produto
+import br.com.alura.orgs.ui.dialog.FormularioImagemDialog
 import java.math.BigDecimal
+
+private const val TITULO_PAGE = "Cadastrar Produto"
 
 class FormularioProdutoActivity : AppCompatActivity() {
 
-    private val binding by lazy {
-        ActivityFormularioProdutoBinding.inflate(layoutInflater)
+  private val binding by lazy {
+    ActivityFormularioProdutoBinding.inflate(layoutInflater)
+  }
+
+  private lateinit var produto: Produto
+  private var imagemUrl: String? = null;
+  private var produtoId = 0L
+
+
+  private val produtosDao: ProdutoDao by lazy {
+    val db = AppDatabase.instancia(this)
+    db.produtoDao()
+  }
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(binding.root)
+    title = TITULO_PAGE
+    configuraBotaoSalvar()
+    tentaCarregarProduto()
+
+    binding.activityFormularioProdutoImage.setOnClickListener {
+      val bindingFormImage = FormularioImagemBinding.inflate(layoutInflater)
+      bindingFormImage.formularioImagemBotaoCarregar.setOnClickListener {
+        val imageUrl = bindingFormImage.formularioImagemUrl.text.toString();
+        bindingFormImage.formularioImagemImageview.tentarCarregarimage(imageUrl);
+      }
+      FormularioImagemDialog(this).show(imagemUrl) { imagem ->
+        imagemUrl = imagem;
+        binding.activityFormularioProdutoImage.tentarCarregarimage(imagemUrl)
+
+      };
+    }
+  }
+
+  private fun tentaCarregarProduto() {
+    produtoId = intent.getLongExtra(CHAVE_PRODUTO_ID, 0 )
+
+
+  }
+
+  override fun onResume() {
+    super.onResume()
+
+    tentaBuscarProduto()
+  }
+
+  private fun tentaBuscarProduto() {
+    produtosDao.buscaPorId(produtoId)?.let {
+      title = "Alterar Produto"
+      preencheCampos(it)
+    }
+  }
+
+  private fun preencheCampos(produto: Produto){
+    imagemUrl = produto.imagem
+    binding.activityFormularioProdutoImage.tentarCarregarimage(produto.imagem)
+    binding.activityFormularioProdutoNome.setText(produto.nome)
+    binding.activityFormularioProdutoDescricao.setText(produto.descricao)
+    binding.activityFormularioProdutoValor.setText(produto.valor.toPlainString())
+  }
+
+  private fun configuraBotaoSalvar() {
+    val botaoSalvar = binding.activityFormularioProdutoBotaoSalvar
+
+
+    botaoSalvar.setOnClickListener {
+      val produtoNovo = criaProduto()
+//      if(produtoId > 0){
+//        produtosDao.atualiza(produtoNovo)
+//      }else{
+//        produtosDao.salva(produtoNovo)
+//      }
+      produtosDao.salva(produtoNovo)
+      finish()
+    }
+  }
+
+  private fun criaProduto(): Produto {
+    val campoNome = binding.activityFormularioProdutoNome
+    val nome = campoNome.text.toString()
+    val campoDescricao = binding.activityFormularioProdutoDescricao
+    val descricao = campoDescricao.text.toString()
+    val campoValor = binding.activityFormularioProdutoValor
+    val valorEmTexto = campoValor.text.toString()
+    val valor = if (valorEmTexto.isBlank()) {
+      BigDecimal.ZERO
+    } else {
+      BigDecimal(valorEmTexto)
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(binding.root)
-        configuraBotaoSalvar()
-    }
-
-    private fun configuraBotaoSalvar() {
-        val botaoSalvar = binding.activityFormularioProdutoBotaoSalvar
-        val dao = ProdutosDao()
-        botaoSalvar.setOnClickListener {
-            val produtoNovo = criaProduto()
-            dao.adiciona(produtoNovo)
-            finish()
-        }
-    }
-
-    private fun criaProduto(): Produto {
-        val campoNome = binding.activityFormularioProdutoNome
-        val nome = campoNome.text.toString()
-        val campoDescricao = binding.activityFormularioProdutoDescricao
-        val descricao = campoDescricao.text.toString()
-        val campoValor = binding.activityFormularioProdutoValor
-        val valorEmTexto = campoValor.text.toString()
-        val valor = if (valorEmTexto.isBlank()) {
-            BigDecimal.ZERO
-        } else {
-            BigDecimal(valorEmTexto)
-        }
-
-        return Produto(
-            nome = nome,
-            descricao = descricao,
-            valor = valor
-        )
-    }
+    return Produto(
+      id = produtoId,
+      nome = nome,
+      descricao = descricao,
+      valor = valor,
+      imagem = imagemUrl
+    )
+  }
 
 }
