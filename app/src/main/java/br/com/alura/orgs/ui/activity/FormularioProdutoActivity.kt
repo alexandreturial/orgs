@@ -10,10 +10,12 @@ import br.com.alura.orgs.extensions.tentaCarregarImagem
 import br.com.alura.orgs.model.Produto
 import br.com.alura.orgs.ui.dialog.FormularioImagemDialog
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 
-class FormularioProdutoActivity : AppCompatActivity() {
+class FormularioProdutoActivity : UsuarioBaseActivity() {
 
     private val binding by lazy {
         ActivityFormularioProdutoBinding.inflate(layoutInflater)
@@ -38,6 +40,10 @@ class FormularioProdutoActivity : AppCompatActivity() {
                 }
         }
         tentaCarregarProduto()
+        lifecycleScope.launch{
+            usuario.filterNotNull().collect{
+            }
+        }
     }
 
     private fun tentaCarregarProduto() {
@@ -76,15 +82,18 @@ class FormularioProdutoActivity : AppCompatActivity() {
         val botaoSalvar = binding.activityFormularioProdutoBotaoSalvar
 
         botaoSalvar.setOnClickListener {
-            val produtoNovo = criaProduto()
+
             lifecycleScope.launch {
-                produtoDao.salva(produtoNovo)
-                finish()
+                usuario.value?.let{usuario ->
+                    val produtoNovo = criaProduto(usuario.id)
+                    produtoDao.salva(produtoNovo)
+                    finish()
+                }
             }
         }
     }
 
-    private fun criaProduto(): Produto {
+    private fun criaProduto(ususairoId: String): Produto {
         val campoNome = binding.activityFormularioProdutoNome
         val nome = campoNome.text.toString()
         val campoDescricao = binding.activityFormularioProdutoDescricao
@@ -102,7 +111,8 @@ class FormularioProdutoActivity : AppCompatActivity() {
             nome = nome,
             descricao = descricao,
             valor = valor,
-            imagem = url
+            imagem = url,
+            usuarioId = ususairoId
         )
     }
 
